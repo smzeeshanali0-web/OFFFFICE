@@ -1,0 +1,42 @@
+name: Build oabulk
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find Android project folder
+        id: loc
+        run: |
+          f=$(find . -name settings.gradle -not -path './.git/*' | head -1)
+          if [ -z "$f" ]; then
+            echo "ERROR: settings.gradle repo me nahi mila. Project files upload karo (app folder + settings.gradle + build.gradle)."
+            ls -R | head -50
+            exit 1
+          fi
+          echo "Project folder: $(dirname "$f")"
+          echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oabulk-apk
+          path: '**/app-debug.apk'
